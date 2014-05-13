@@ -1,0 +1,42 @@
+#!/usr/bin/env ruby
+
+require 'gli'
+require './record'
+ 
+include GLI::App
+ 
+program_desc 'Personal time analysis command line app'
+ 
+flag [:d, :data], :default_value => Dir.foreach('data')
+  .map { |x| File.join('data', x) }
+  .map { |x| { path: x, mtime: File.mtime(x) } if File.file?(x) }
+  .reject { |x| x == nil }
+  .sort { |a, b| b <=> a }
+  .first[:path]
+ 
+pre do |global_options,command,options,args|
+  $records = Record.loadJSON(global_options[:data])
+end
+ 
+command :sum do |c|
+  c.action do |global_options,options,args|
+    SECOND = 1
+    MINUTE = 60
+    HOUR = 60 * MINUTE
+    DAY = 24 * HOUR
+    
+    all_seconds = $records.map { |x| x.duration }.inject { |sum, x| sum + x }
+    days = all_seconds / DAY
+    hours = all_seconds % DAY / HOUR
+    minutes = all_seconds % DAY % HOUR / MINUTE
+    seconds = all_seconds % DAY % HOUR % MINUTE / SECOND
+    
+    day_str = "#{days} " + (days > 1 ? "days" : "day")
+    hour_str = "#{hours} " + (hours > 1 ? "hours" : "hour")
+    minute_str = "#{minutes} " + (minutes > 1 ? "minutes" : "minute")
+    second_str = "#{seconds} " + (seconds > 1 ? "seconds" : "second")
+    puts "#{day_str} #{hour_str} #{minute_str} #{second_str}"
+  end
+end
+ 
+exit run(ARGV)
